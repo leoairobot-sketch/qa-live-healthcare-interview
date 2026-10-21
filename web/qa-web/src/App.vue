@@ -1,7 +1,14 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { RouterView } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
 import AppFooter from './components/AppFooter.vue';
+import { ensureAuthReady } from './store/auth';
+
+// 应用挂载时静默恢复问诊用户登录态（401 不提示）
+onMounted(() => {
+  ensureAuthReady();
+});
 </script>
 
 <template>

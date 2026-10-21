@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:latest
+    container_name: qa-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+    ports:
+      - "3306:3306"
+    volumes:
+      - ~/mysql/data:/var/lib/mysql
+    networks:
+      - qa-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: qa-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      # 宿主机 80 被 Dify 的 docker-nginx-1 占用；
+      # 8080 留给 qa-service-user（Spring Boot 默认端口），phpMyAdmin 用 8081
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - qa-net
+
+networks:
+  qa-net:
+    driver: bridge

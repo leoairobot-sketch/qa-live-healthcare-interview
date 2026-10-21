@@ -5,6 +5,8 @@ import DoctorLogin from '../views/DoctorLogin.vue';
 import DoctorRoom from '../views/DoctorRoom.vue';
 import Doctors from '../views/Doctors.vue';
 import About from '../views/About.vue';
+import Login from '../views/Login.vue';
+import { ensureAuthReady, patientUser } from '../store/auth';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -33,6 +35,11 @@ const routes: RouteRecordRaw[] = [
     component: About,
   },
   {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+  },
+  {
     path: '/doctor/login',
     name: 'DoctorLogin',
     component: DoctorLogin,
@@ -47,6 +54,17 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+// 问诊门禁：未登录访问 /consultation* 重定向登录页并携带回跳地址；已登录访问 /login 直接回首页
+router.beforeEach(async (to) => {
+  await ensureAuthReady();
+  if (to.path.startsWith('/consultation') && !patientUser.value) {
+    return { path: '/login', query: { redirect: to.fullPath } };
+  }
+  if (to.path === '/login' && patientUser.value) {
+    return { path: '/' };
+  }
 });
 
 export default router;

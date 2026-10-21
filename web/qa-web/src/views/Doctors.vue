@@ -6,57 +6,101 @@
     </div>
 
     <div class="doctors-container">
-      <div class="doctors-grid">
-        <a-card
-          v-for="doctor in allDoctors"
-          :key="doctor.id"
-          class="doctor-card"
-          :class="{ 'active': doctor.isActive }"
-        >
-          <div class="card-header">
-            <img :src="doctor.avatar" :alt="doctor.name" class="doctor-avatar" />
-            <a-badge
-              :status="doctor.isActive ? 'processing' : 'default'"
-              :text="doctor.isActive ? '在线' : '离线'"
-            />
-          </div>
-          <div class="card-body">
-            <h3>{{ doctor.name }}</h3>
-            <p class="doctor-title">{{ doctor.title }}</p>
-            <p class="doctor-department">{{ doctor.department }}</p>
-            <p class="doctor-experience">{{ doctor.experience }}</p>
-            <div class="doctor-specialties">
-              <a-tag v-for="specialty in doctor.specialties" :key="specialty" color="blue">
-                {{ specialty }}
-              </a-tag>
+      <a-spin :spinning="loading">
+        <div v-if="loadError" class="load-error">
+          <a-alert
+            type="error"
+            message="医生列表加载失败"
+            description="无法连接医生数据服务，请确认后端服务已启动。"
+            show-icon
+          />
+          <a-button type="primary" class="retry-button" @click="loadDoctors">重试</a-button>
+        </div>
+
+        <div v-else class="doctors-grid">
+          <a-card
+            v-for="doctor in doctors"
+            :key="doctor.id"
+            class="doctor-card"
+            :class="{ 'active': doctor.isActive }"
+          >
+            <div class="card-header">
+              <img :src="doctor.avatar" :alt="doctor.name" class="doctor-avatar" />
+              <a-badge
+                :status="doctor.isActive ? 'processing' : 'default'"
+                :text="doctor.isActive ? '在线' : '离线'"
+              />
             </div>
-          </div>
-          <div class="card-footer">
-            <a-button
-              type="primary"
-              block
-              :disabled="!doctor.isActive"
-              @click="goToConsultation(doctor)"
-            >
-              {{ doctor.isActive ? '进入诊室' : '暂未开放' }}
-            </a-button>
-          </div>
-        </a-card>
-      </div>
+            <div class="card-body">
+              <h3>{{ doctor.name }}</h3>
+              <p class="doctor-title">{{ doctor.title }}</p>
+              <p class="doctor-department">{{ doctor.department }}</p>
+              <p class="doctor-experience">{{ doctor.experience }}</p>
+              <div class="doctor-specialties">
+                <a-tag v-for="specialty in doctor.specialties" :key="specialty" color="blue">
+                  {{ specialty }}
+                </a-tag>
+              </div>
+            </div>
+            <div class="card-footer">
+              <a-button
+                type="primary"
+                block
+                :disabled="!doctor.isActive"
+                @click="goToConsultation(doctor)"
+              >
+                {{ doctor.isActive ? '进入诊室' : '暂未开放' }}
+              </a-button>
+            </div>
+          </a-card>
+        </div>
+      </a-spin>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { store, Doctor } from '../store';
+
+// 医生列表接口（GET /api/doctors）返回的展示字段，不含密码
+interface ApiDoctor {
+  id: string;
+  username: string;
+  name: string;
+  title: string;
+  department: string;
+  avatar: string;
+  experience: string;
+  specialties: string[];
+  isActive: boolean;
+}
 
 const router = useRouter();
 
-const allDoctors = computed(() => store.state.doctors);
+const doctors = ref<ApiDoctor[]>([]);
+const loading = ref(true);
+const loadError = ref(false);
 
-const goToConsultation = (doctor: Doctor) => {
+async function loadDoctors() {
+  loading.value = true;
+  loadError.value = false;
+  try {
+    const response = await fetch('/api/doctors');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    doctors.value = await response.json();
+  } catch (error) {
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(loadDoctors);
+
+const goToConsultation = (doctor: ApiDoctor) => {
   router.push(`/consultation/${doctor.username}`);
 };
 </script>
@@ -92,6 +136,15 @@ const goToConsultation = (doctor: Doctor) => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 48px 24px;
+}
+
+.load-error {
+  text-align: center;
+  padding: 48px 0;
+}
+
+.retry-button {
+  margin-top: 16px;
 }
 
 .doctors-grid {

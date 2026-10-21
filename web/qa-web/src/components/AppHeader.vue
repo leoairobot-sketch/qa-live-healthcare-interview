@@ -8,37 +8,87 @@
       <a-menu v-model:selectedKeys="selectedKeys" mode="horizontal" class="nav-menu">
         <a-menu-item key="home" @click="navigateTo('/')">
           <HomeOutlined />
-          首页
+          {{ t('nav.home') }}
         </a-menu-item>
         <a-menu-item key="consultation" @click="navigateTo('/consultation')">
           <MessageOutlined />
-          问诊
+          {{ t('nav.consultation') }}
         </a-menu-item>
         <a-menu-item key="doctors" @click="navigateTo('/doctors')">
           <TeamOutlined />
-          医生
+          {{ t('nav.doctors') }}
         </a-menu-item>
         <a-menu-item key="about" @click="navigateTo('/about')">
           <InfoCircleOutlined />
-          关于
+          {{ t('nav.about') }}
         </a-menu-item>
       </a-menu>
-      <a-button type="primary" class="login-btn" @click="navigateTo('/doctor/login')">
-        <UserOutlined />
-        医生登录
-      </a-button>
+      <div class="header-actions">
+        <a-dropdown>
+          <a-button class="lang-btn" @click.prevent>
+            <GlobalOutlined />
+            {{ currentLocaleLabel }}
+            <DownOutlined />
+          </a-button>
+          <template #overlay>
+            <a-menu :selected-keys="[locale]" @click="onLocaleChange">
+              <a-menu-item v-for="l in LOCALES" :key="l.value">
+                {{ l.label }}
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+        <a-dropdown v-if="patientUser">
+          <a-button class="user-btn" @click.prevent>
+            <UserOutlined />
+            {{ t('nav.hello', { name: patientUser.name }) }}
+            <DownOutlined />
+          </a-button>
+          <template #overlay>
+            <a-menu @click="onUserMenuClick">
+              <a-menu-item key="logout">
+                <LogoutOutlined />
+                {{ t('nav.logout') }}
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+        <a-button v-else type="primary" @click="navigateTo('/login')">
+          <UserOutlined />
+          {{ t('nav.patientLogin') }}
+        </a-button>
+        <a-button type="primary" class="login-btn" @click="navigateTo('/doctor/login')">
+          <UserOutlined />
+          {{ t('nav.doctorLogin') }}
+        </a-button>
+      </div>
     </div>
   </a-layout-header>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { HomeOutlined, MessageOutlined, TeamOutlined, InfoCircleOutlined, UserOutlined } from '@ant-design/icons-vue';
+import { useI18n } from 'vue-i18n';
+import { message } from 'ant-design-vue';
+import { HomeOutlined, MessageOutlined, TeamOutlined, InfoCircleOutlined, UserOutlined, GlobalOutlined, DownOutlined, LogoutOutlined } from '@ant-design/icons-vue';
+import { LOCALES, LOCALE_STORAGE_KEY, SupportedLocale } from '../locales';
+import { auth, patientUser } from '../store/auth';
 
 const router = useRouter();
 const route = useRoute();
+const { t, locale } = useI18n();
 const selectedKeys = ref<string[]>(['home']);
+
+const currentLocaleLabel = computed(
+  () => LOCALES.find(l => l.value === locale.value)?.label ?? locale.value
+);
+
+const onLocaleChange = ({ key }: { key: string | number }) => {
+  locale.value = key as SupportedLocale;
+  localStorage.setItem(LOCALE_STORAGE_KEY, String(key));
+  document.documentElement.lang = String(key);
+};
 
 watch(() => route.path, (newPath) => {
   if (newPath === '/') {
@@ -54,6 +104,14 @@ watch(() => route.path, (newPath) => {
 
 const navigateTo = (path: string) => {
   router.push(path);
+};
+
+const onUserMenuClick = async ({ key }: { key: string | number }) => {
+  if (key === 'logout') {
+    await auth.logout();
+    message.success('已退出登录');
+    router.push('/');
+  }
 };
 </script>
 
@@ -106,6 +164,24 @@ const navigateTo = (path: string) => {
   border: none;
   margin: 0 40px;
   line-height: 64px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .login-btn {
